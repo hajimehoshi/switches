@@ -72,7 +72,7 @@ func newPassage(switches int) *passage {
 
 func (p *passage) initRandomly(switches int, switchBits int) {
 	for i := 0; i < switches; i++ {
-		if rand.Intn(switches) == 0 {
+		if switches > 1 && rand.Intn(switches) == 0 {
 			continue
 		}
 		if (switchBits>>uint(i))&1 == 0 {
@@ -122,52 +122,6 @@ type room struct {
 	dirs     [6]*passage
 	oneWays  [6]bool
 	switches []bool
-}
-
-func (r *room) isDeadEnd(width, height, depth int, switches int, switchBits int) bool {
-	for s := -1; s < switches; s++ {
-		if 0 <= s {
-			n := 0
-			for i, b := range r.switches {
-				if b || i == s {
-					n++
-				}
-			}
-			if max(1, switches/2) < n {
-				continue
-			}
-		}
-		for i := 0; i < 6; i++ {
-			d := dir(i)
-			switch {
-			case d == dirLeft && r.x == 0:
-				continue
-			case d == dirRight && r.x == width-1:
-				continue
-			case d == dirUp && r.y == 0:
-				continue
-			case d == dirDown && r.y == height-1:
-				continue
-			case d == dirUpstairs && r.z == 0:
-				continue
-			case d == dirDownstairs && r.z == depth-1:
-				continue
-			}
-			p := r.dirs[d]
-			if p == nil {
-				return false
-			}
-			bits := switchBits
-			if 0 <= s {
-				bits ^= 1 << uint(s)
-			}
-			if max(1, switches/2) >= p.dontCareNum(switches, bits) {
-				continue
-			}
-			return false
-		}
-	}
-	return true
 }
 
 type field struct {
@@ -227,10 +181,10 @@ func (f *field) makeRoughStructure() bool {
 	goal := position{f.width - 1, f.height - 1, f.depth - 1, (1 << uint(f.switches)) - 1}
 	f.rooms[f.index(start.X, start.Y, start.Z)] = f.newRoom(start.X, start.Y, start.Z)
 	current := start
+	continued := 0
 	for current != goal {
 		// TODO: Calc candidate first!
-		room := f.rooms[f.index(current.X, current.Y, current.Z)]
-		if room.isDeadEnd(f.width, f.height, f.depth, f.switches, current.SwitchBits) {
+		if 10 < continued {
 			println("yarinaoshi")
 			return false
 		}
@@ -270,6 +224,7 @@ func (f *field) makeRoughStructure() bool {
 				}
 			}
 			if max(1, f.switches/2) < n {
+				continued++
 				continue
 			}
 			prevRoom.switches[changedSwitch] = true
@@ -286,7 +241,8 @@ func (f *field) makeRoughStructure() bool {
 				nextRoom.dirs[d.opposite()] = p
 			} else {
 				p := prevRoom.dirs[d]
-				if max(1, f.switches/2) < p.dontCareNum(f.switches, ns) {
+				if max(0, f.switches-2) < p.dontCareNum(f.switches, ns) {
+					continued++
 					continue
 				}
 				p.allow(f.switches, ns)
@@ -300,6 +256,7 @@ func (f *field) makeRoughStructure() bool {
 			}
 			}*/
 		}
+		continued = 0
 		current = position{nx, ny, nz, ns}
 	}
 	lastRoom := f.newRoom(f.width - 1, f.height, f.depth - 1)
