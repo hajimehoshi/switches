@@ -41,7 +41,7 @@ type gameScene struct {
 func newGameScene() (*gameScene, error) {
 	width := 4
 	height := 4
-	depth := 4
+	depth := 1
 	switches := 4
 	f, err := newField(width, height, depth, switches)
 	if err != nil {
@@ -164,6 +164,7 @@ type tileParts struct {
 	scene   *gameScene
 	dst     []int
 	src     []int
+	skips   map[int]struct{}
 	letters []*switchLetter
 }
 
@@ -181,15 +182,18 @@ func newTileParts(scene *gameScene) *tileParts {
 	l := sw * (y1 - y0 + 1)
 	p.dst = make([]int, l*2)
 	p.src = make([]int, l*2)
+	p.skips = map[int]struct{}{}
 	player := p.scene.player
 	for i := 0; i < l; i++ {
 		x := x0 + i/sw
 		y := y0 + i%sw
 		if x < 0 || y < 0 {
+			p.skips[i] = struct{}{}
 			continue
 		}
 		w, h, _ := p.scene.field.tileSize()
 		if w <= x || h <= y {
+			p.skips[i] = struct{}{}
 			continue
 		}
 		dx := (i/sw)*gridSize - gridSize/2 - gridSize
@@ -211,6 +215,9 @@ func newTileParts(scene *gameScene) *tileParts {
 		p.dst[2*i+1] = dy
 		t, s := p.scene.field.tile(x, y, player.z, p.scene.switchStates)
 		switch t {
+		case tileNone:
+			p.skips[i] = struct{}{}
+			continue
 		case tileSwitch0:
 			fallthrough
 		case tileSwitch1:
@@ -269,11 +276,17 @@ func (p *tileParts) Len() int {
 }
 
 func (p *tileParts) Dst(i int) (int, int, int, int) {
+	if _, ok := p.skips[i]; ok {
+		return 0, 0, 0, 0
+	}
 	x, y := p.dst[2*i], p.dst[2*i+1]
 	return x, y, x + gridSize, y + gridSize
 }
 
 func (p *tileParts) Src(i int) (int, int, int, int) {
+	if _, ok := p.skips[i]; ok {
+		return 0, 0, 0, 0
+	}
 	x, y := p.src[2*i], p.src[2*i+1]
 	return x, y, x + gridSize, y + gridSize
 }
