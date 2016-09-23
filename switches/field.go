@@ -120,7 +120,6 @@ func (p *passage) dontCareNum(switches int, switchBits int) int {
 type room struct {
 	x, y, z  int
 	dirs     [6]*passage
-	oneWays  [6]bool
 	switches []bool
 }
 
@@ -247,14 +246,6 @@ func (f *field) makeRoughStructure() bool {
 				}
 				p.allow(f.switches, ns)
 			}
-			// Disable 'one way' temporarily
-			/*if rand.Intn(3) == 0 {
-			if d == dirDown || d == dirLeft {
-				nextRoom.oneWays[d] = true
-			} else {
-				prevRoom.oneWays[d] = true
-			}
-			}*/
 		}
 		continued = 0
 		current = position{nx, ny, nz, ns}
@@ -415,12 +406,6 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 			i := mx - (cx + f.switches + 2)
 			return switchedTile(p.switches[i], switchStates[i]), i
 		case mx == w-1:
-			if room.oneWays[dirLeft] {
-				return tileOneWayLeft, 0
-			}
-			if room.oneWays[dirRight] {
-				return tileOneWayRight, 0
-			}
 			if room.dirs[dirRight] != nil {
 				return tileRegular, 0
 			}
@@ -446,12 +431,7 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 		if hasUpstairsLeft {
 			switch {
 			case my == 1:
-				if room.oneWays[dirUpstairs] {
-					return tileOneWayUpstairs, 0
-				}
-				if !f.rooms[f.index(rx, ry, rz-1)].oneWays[dirDownstairs] {
-					return tileUpstairs, 0
-				}
+				return tileUpstairs, 0
 			case 1 < my && my < f.switches+2:
 				p := room.dirs[dirUpstairs]
 				i := my - 2
@@ -462,12 +442,7 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 		if hasDownstairsLeft {
 			switch {
 			case my == 1:
-				if room.oneWays[dirDownstairs] {
-					return tileOneWayDownstairs, 0
-				}
-				if !f.rooms[f.index(rx, ry, rz+1)].oneWays[dirUpstairs] {
-					return tileDownstairs, 0
-				}
+				return tileDownstairs, 0
 			case 1 < my && my < f.switches+2:
 				p := room.dirs[dirDownstairs]
 				i := my - 2
@@ -485,17 +460,8 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 			return switchedTile(p.switches[i], switchStates[i]), i
 		}
 		if room.dirs[dirUp] != nil {
-			if room.oneWays[dirUp] && my == 0 {
-				return tileOneWayUp, 0
-			}
 			return tileRegular, 0
 		}
-		// This seems buggy
-		/*if room.dirs[dirDown] != nil {
-			if room.oneWays[dirDown] && my == 0 {
-				return tileOneWayDown, 0
-			}
-		}*/
 	case mx == 3+f.switches:
 		if my == 0 {
 			return tileNone, 0
@@ -503,12 +469,7 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 		if hasDownstairsRight {
 			switch {
 			case my == 1:
-				if room.oneWays[dirDownstairs] {
-					return tileOneWayDownstairs, 0
-				}
-				if !f.rooms[f.index(rx, ry, rz+1)].oneWays[dirUpstairs] {
-					return tileDownstairs, 0
-				}
+				return tileDownstairs, 0
 			case 1 < my && my < f.switches+2:
 				p := room.dirs[dirDownstairs]
 				i := my - 2
@@ -519,12 +480,7 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 		if hasUpstairsRight {
 			switch {
 			case my == 1:
-				if room.oneWays[dirUpstairs] {
-					return tileOneWayUpstairs, 0
-				}
-				if !f.rooms[f.index(rx, ry, rz-1)].oneWays[dirDownstairs] {
-					return tileUpstairs, 0
-				}
+				return tileUpstairs, 0
 			case 1 < my && my < f.switches+2:
 				p := room.dirs[dirUpstairs]
 				i := my - 2
