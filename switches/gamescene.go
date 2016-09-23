@@ -39,10 +39,10 @@ type gameScene struct {
 }
 
 func newGameScene() (*gameScene, error) {
-	width := 4
-	height := 4
-	depth := 4
-	switches := 4
+	width := 8
+	height := 8
+	depth := 8
+	switches := 8
 	f, err := newField(width, height, depth, switches)
 	if err != nil {
 		return nil, err

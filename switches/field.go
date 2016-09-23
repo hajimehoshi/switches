@@ -241,7 +241,7 @@ func (f *field) makeRoughStructure() bool {
 				nextRoom.dirs[d.opposite()] = p
 			} else {
 				p := prevRoom.dirs[d]
-				if max(0, f.switches-2) < p.dontCareNum(f.switches, ns) {
+				if max(0, f.switches-1) < p.dontCareNum(f.switches, ns) {
 					continued++
 					continue
 				}
