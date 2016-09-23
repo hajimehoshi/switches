@@ -32,13 +32,14 @@ type player struct {
 }
 
 type gameScene struct {
+	game         *Game
 	field        *field
 	player       *player
 	tilesImage   *ebiten.Image
 	switchStates []bool
 }
 
-func newGameScene() (*gameScene, error) {
+func newGameScene(game *Game) (*gameScene, error) {
 	width := 8
 	height := 8
 	depth := 8
@@ -53,6 +54,7 @@ func newGameScene() (*gameScene, error) {
 	}
 	px, py := f.start()
 	s := &gameScene{
+		game:         game,
 		field:        f,
 		player:       &player{x: px, y: py, z: 0},
 		tilesImage:   tilesImage,
@@ -90,7 +92,7 @@ func (s *gameScene) Update() error {
 	}
 	s.player.dir = dir
 	s.player.moveCount = playerMaxMoveCount
-	appendTask(func() error {
+	s.game.appendTask(func() error {
 		if 0 < s.player.moveCount {
 			s.player.moveCount--
 		}
@@ -112,7 +114,7 @@ func (s *gameScene) Update() error {
 			fallthrough
 		case tileSwitch1:
 			wait := 10
-			appendTask(func() error {
+			s.game.appendTask(func() error {
 				if 0 < wait {
 					wait--
 					return nil

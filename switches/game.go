@@ -15,6 +15,8 @@
 package switches
 
 import (
+	"errors"
+
 	"github.com/hajimehoshi/ebiten"
 )
 
@@ -23,19 +25,24 @@ type scene interface {
 	Draw(screen *ebiten.Image) error
 }
 
+type task func() error
+
+var (
+	taskTerminated = errors.New("switches: task terminated")
+)
+
 type Game struct {
 	scene scene
 	tasks []task
 }
 
 func NewGame() (*Game, error) {
-	s, err := newGameScene()
+	g := &Game{}
+	s, err := newGameScene(g)
 	if err != nil {
 		return nil, err
 	}
-	g := &Game{
-		scene: s,
-	}
+	g.scene = s
 	return g, nil
 }
 
@@ -44,9 +51,26 @@ const (
 	screenHeight = 256
 )
 
+func (g *Game) appendTask(task task) {
+	g.tasks = append(g.tasks, task)
+}
+
+func (g *Game) consumeTask() (bool, error) {
+	if len(g.tasks) == 0 {
+		return false, nil
+	}
+	t := g.tasks[0]
+	if err := t(); err == taskTerminated {
+		g.tasks = g.tasks[1:]
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (g *Game) Run() error {
 	f := func(screen *ebiten.Image) error {
-		if consumed, err := consumeTask(); err != nil {
+		if consumed, err := g.consumeTask(); err != nil {
 			return err
 		} else if !consumed {
 			if err := g.update(); err != nil {
