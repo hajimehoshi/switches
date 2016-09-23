@@ -184,7 +184,6 @@ func (f *field) makeRoughStructure() bool {
 	for current != goal {
 		// TODO: Calc candidate first!
 		if 10 < continued {
-			println("yarinaoshi")
 			return false
 		}
 		nx, ny, nz, ns := current.X, current.Y, current.Z, current.SwitchBits

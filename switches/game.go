@@ -38,11 +38,7 @@ type Game struct {
 
 func NewGame() (*Game, error) {
 	g := &Game{}
-	s, err := newGameScene(g)
-	if err != nil {
-		return nil, err
-	}
-	g.scene = s
+	g.scene = newTitleScene(g)
 	return g, nil
 }
 
@@ -66,6 +62,10 @@ func (g *Game) consumeTask() (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+func (g *Game) goTo(scene scene) {
+	g.scene = scene
 }
 
 func (g *Game) Run() error {
