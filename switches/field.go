@@ -297,6 +297,16 @@ func (t tile) oneWay() bool {
 	return false
 }
 
+func (t tile) isPassable() bool {
+	if t == tileNone {
+		return false
+	}
+	if t == tileSwitchedTileInvalid {
+		return false
+	}
+	return true
+}
+
 func (f *field) start() (int, int) {
 	_, h := f.roomSize()
 	return 2, h - 1

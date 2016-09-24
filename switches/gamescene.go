@@ -32,11 +32,13 @@ type player struct {
 }
 
 type gameScene struct {
-	game         *Game
-	field        *field
-	player       *player
-	tilesImage   *ebiten.Image
-	switchStates []bool
+	game          *Game
+	field         *field
+	player        *player
+	tilesImage    *ebiten.Image
+	switchStates  []bool
+	selectedTileX int
+	selectedTileY int
 }
 
 func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, error) {
@@ -60,6 +62,19 @@ func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, e
 }
 
 func (s *gameScene) Update() error {
+	s.updateSelectedTile()
+	if s.game.input.IsTriggered() {
+		tile, _ := s.field.tile(s.selectedTileX, s.selectedTileY, s.player.z, s.switchStates)
+		if tile.isPassable() {
+			passable := func(x, y int) bool {
+				t, _ := s.field.tile(x, y, s.player.z, s.switchStates)
+				return t.isPassable()
+			}
+			path := calcPath(passable, s.player.x, s.player.y, s.selectedTileX, s.selectedTileY)
+			_ = path
+		}
+		return nil
+	}
 	// Move the player
 	tile, _ := s.field.tile(s.player.x, s.player.y, s.player.z, s.switchStates)
 	nx, ny := s.player.x, s.player.y
@@ -83,21 +98,34 @@ func (s *gameScene) Update() error {
 	if s.player.x == nx && s.player.y == ny {
 		return nil
 	}
-	if t, _ := s.field.tile(nx, ny, s.player.z, s.switchStates); t == tileNone || t == tileSwitchedTileInvalid {
+	if t, _ := s.field.tile(nx, ny, s.player.z, s.switchStates); !t.isPassable() {
 		return nil
 	}
 	s.player.dir = dir
 	s.player.moveCount = playerMaxMoveCount
-	s.game.appendTask(func() error {
+	s.game.appendTask(s.moveTask(nx, ny))
+	return nil
+}
+
+func (s *gameScene) updateSelectedTile() {
+	x, y := ebiten.CursorPosition()
+	ox, oy := s.tileOffset()
+	x0, y0, _, _ := s.tileRangeInScreen()
+	s.selectedTileX = x0 + (x-ox)/gridSize
+	s.selectedTileY = y0 + (y-oy)/gridSize
+}
+
+func (s *gameScene) moveTask(nextX, nextY int) func() error {
+	return func() error {
 		if 0 < s.player.moveCount {
 			s.player.moveCount--
 		}
 		if 0 < s.player.moveCount {
 			return nil
 		}
-		s.player.x = nx
-		s.player.y = ny
-		switch t, sw := s.field.tile(nx, ny, s.player.z, s.switchStates); t {
+		s.player.x = nextX
+		s.player.y = nextY
+		switch t, sw := s.field.tile(nextX, nextY, s.player.z, s.switchStates); t {
 		case tileUpstairs:
 			fallthrough
 		case tileOneWayUpstairs:
@@ -120,8 +148,35 @@ func (s *gameScene) Update() error {
 			})
 		}
 		return taskTerminated
-	})
-	return nil
+	}
+}
+
+func (s *gameScene) tileRangeInScreen() (int, int, int, int) {
+	nx := screenWidth / gridSize
+	ny := screenHeight / gridSize
+	x0 := s.player.x - nx/2 - 1
+	y0 := s.player.y - ny/2 - 1
+	x1 := s.player.x + nx/2 + 1
+	y1 := s.player.y + ny/2 + 1
+	return x0, y0, x1, y1
+}
+
+func (s *gameScene) tileOffset() (int, int) {
+	ox, oy := -gridSize/2-gridSize, -gridSize/2-gridSize
+	if 0 < s.player.moveCount {
+		d := gridSize * (playerMaxMoveCount - s.player.moveCount) / playerMaxMoveCount
+		switch s.player.dir {
+		case dirLeft:
+			ox += d
+		case dirRight:
+			ox -= d
+		case dirUp:
+			oy += d
+		case dirDown:
+			oy -= d
+		}
+	}
+	return ox, oy
 }
 
 const (
@@ -170,12 +225,7 @@ func newTileParts(scene *gameScene) *tileParts {
 	p := &tileParts{
 		scene: scene,
 	}
-	nx := screenWidth / gridSize
-	ny := screenHeight / gridSize
-	x0 := p.scene.player.x - nx/2 - 1
-	y0 := p.scene.player.y - ny/2 - 1
-	x1 := p.scene.player.x + nx/2 + 1
-	y1 := p.scene.player.y + ny/2 + 1
+	x0, y0, x1, y1 := scene.tileRangeInScreen()
 	sw := x1 - x0 + 1
 	l := sw * (y1 - y0 + 1)
 	p.dst = make([]int, l*2)
@@ -194,21 +244,9 @@ func newTileParts(scene *gameScene) *tileParts {
 			p.skips[i] = struct{}{}
 			continue
 		}
-		dx := (i/sw)*gridSize - gridSize/2 - gridSize
-		dy := (i%sw)*gridSize - gridSize/2 - gridSize
-		if 0 < player.moveCount {
-			d := gridSize * (playerMaxMoveCount - player.moveCount) / playerMaxMoveCount
-			switch player.dir {
-			case dirLeft:
-				dx += d
-			case dirRight:
-				dx -= d
-			case dirUp:
-				dy += d
-			case dirDown:
-				dy -= d
-			}
-		}
+		ox, oy := p.scene.tileOffset()
+		dx := (i/sw)*gridSize + ox
+		dy := (i%sw)*gridSize + oy
 		p.dst[2*i] = dx
 		p.dst[2*i+1] = dy
 		t, s := p.scene.field.tile(x, y, player.z, p.scene.switchStates)
@@ -303,6 +341,9 @@ func (s *gameScene) Draw(screen *ebiten.Image) error {
 	if err := screen.DrawImage(s.tilesImage, op); err != nil {
 		return err
 	}
+	if err := s.drawCursor(screen); err != nil {
+		return err
+	}
 	for _, l := range tileParts.switchLetters() {
 		if err := font.ArcadeFont.DrawText(screen, string(l.letter), l.x, l.y, 1, l.color); err != nil {
 			return err
@@ -312,6 +353,24 @@ func (s *gameScene) Draw(screen *ebiten.Image) error {
 		return err
 	}
 	if err := s.drawFloorNumber(screen); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *gameScene) drawCursor(screen *ebiten.Image) error {
+	ox, oy := s.tileOffset()
+	x0, y0, _, _ := s.tileRangeInScreen()
+	dstX := s.selectedTileX*gridSize - x0*gridSize + ox
+	dstY := s.selectedTileY*gridSize - y0*gridSize + oy
+	op := &ebiten.DrawImageOptions{}
+	op.ImageParts = &tilePart{
+		srcX: 16,
+		srcY: 16,
+		dstX: dstX,
+		dstY: dstY,
+	}
+	if err := screen.DrawImage(s.tilesImage, op); err != nil {
 		return err
 	}
 	return nil
