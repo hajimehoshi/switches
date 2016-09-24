@@ -39,11 +39,7 @@ type gameScene struct {
 	switchStates []bool
 }
 
-func newGameScene(game *Game) (*gameScene, error) {
-	width := 8
-	height := 8
-	depth := 8
-	switches := 8
+func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, error) {
 	f, err := newField(width, height, depth, switches)
 	if err != nil {
 		return nil, err
@@ -298,7 +294,7 @@ func (p *tileParts) switchLetters() []*switchLetter {
 }
 
 func (s *gameScene) Draw(screen *ebiten.Image) error {
-	if err := screen.Fill(color.RGBA{0x21, 0x21, 0x21, 0xff}); err != nil {
+	if err := screen.Fill(backgroundColor); err != nil {
 		return err
 	}
 	op := &ebiten.DrawImageOptions{}

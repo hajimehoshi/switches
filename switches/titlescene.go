@@ -21,26 +21,69 @@ import (
 	"github.com/hajimehoshi/switches/switches/internal/font"
 )
 
+type mode struct {
+	text      string
+	fieldSize int
+	x         int
+	y         int
+}
+
+func (m *mode) size() (int, int) {
+	return font.ArcadeFont.TextWidth(m.text), font.ArcadeFont.TextHeight(m.text)
+}
+
 type titleScene struct {
-	game        *Game
-	gameScene   *gameScene
-	gameSceneCh chan error
+	game         *Game
+	gameScene    *gameScene
+	modes        []*mode
+	selectedMode *mode
+	loadingCh    chan error
 }
 
 func newTitleScene(game *Game) *titleScene {
+	y := screenHeight - 8 - 64
+	modes := []*mode{
+		{"EASY", 2, 0, y},
+		{"NORMAL", 4, 0, y + 16},
+		{"HARD", 6, 0, y + 32},
+		{"EXTREME", 8, 0, y + 48},
+	}
+	maxWidth := 0
+	for _, m := range modes {
+		w, _ := m.size()
+		if w > maxWidth {
+			maxWidth = w
+		}
+	}
+	for _, m := range modes {
+		m.x = (screenWidth - maxWidth) / 2
+	}
 	return &titleScene{
-		game: game,
+		game:  game,
+		modes: modes,
 	}
 }
 
 func (t *titleScene) Update() error {
-	if t.gameSceneCh == nil {
-		t.gameSceneCh = make(chan error)
+	if t.loadingCh == nil {
+		t.selectedMode = nil
+		x, y := ebiten.CursorPosition()
+		for _, m := range t.modes {
+			w, h := m.size()
+			if m.x <= x && x < m.x+w && m.y <= y && y < m.y+h {
+				t.selectedMode = m
+				break
+			}
+		}
+	}
+	if t.game.input.IsTriggered() && t.loadingCh == nil {
+		t.loadingCh = make(chan error)
+		m := t.selectedMode
 		go func() {
-			defer close(t.gameSceneCh)
-			s, err := newGameScene(t.game)
+			defer close(t.loadingCh)
+			s, err := newGameScene(m.fieldSize, m.fieldSize, m.fieldSize, m.fieldSize, t.game)
 			if err != nil {
-				t.gameSceneCh <- err
+				t.loadingCh <- err
 				return
 			}
 			t.gameScene = s
@@ -48,7 +91,7 @@ func (t *titleScene) Update() error {
 		return nil
 	}
 	select {
-	case err := <-t.gameSceneCh:
+	case err := <-t.loadingCh:
 		if err != nil {
 			return err
 		}
@@ -59,6 +102,24 @@ func (t *titleScene) Update() error {
 }
 
 func (t *titleScene) Draw(screen *ebiten.Image) error {
+	if err := screen.Fill(backgroundColor); err != nil {
+		return err
+	}
+	if t.loadingCh == nil {
+		if err := font.ArcadeFont.DrawText(screen, "SWITCHES", 8, 8, 1, color.White); err != nil {
+			return err
+		}
+		for _, m := range t.modes {
+			clr := color.Color(color.White)
+			if t.selectedMode == m {
+				clr = color.RGBA{0xff, 0xee, 0x58, 0xff}
+			}
+			if err := font.ArcadeFont.DrawText(screen, m.text, m.x, m.y, 1, clr); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if err := font.ArcadeFont.DrawText(screen, "NOW LOADING...", 8, 8, 1, color.White); err != nil {
 		return err
 	}

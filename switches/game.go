@@ -16,8 +16,10 @@ package switches
 
 import (
 	"errors"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/switches/switches/internal/input"
 )
 
 type scene interface {
@@ -31,13 +33,20 @@ var (
 	taskTerminated = errors.New("switches: task terminated")
 )
 
+var (
+	backgroundColor = color.RGBA{0x21, 0x21, 0x21, 0xff}
+)
+
 type Game struct {
 	scene scene
 	tasks []task
+	input *input.Input
 }
 
 func NewGame() (*Game, error) {
-	g := &Game{}
+	g := &Game{
+		input: input.New(),
+	}
 	g.scene = newTitleScene(g)
 	return g, nil
 }
@@ -70,6 +79,7 @@ func (g *Game) goTo(scene scene) {
 
 func (g *Game) Run() error {
 	f := func(screen *ebiten.Image) error {
+		g.input.Update()
 		if consumed, err := g.consumeTask(); err != nil {
 			return err
 		} else if !consumed {
