@@ -78,6 +78,10 @@ func (s *gameScene) Update() error {
 				return false
 			}
 			t, _ := s.field.tile(x, y, s.player.z, s.switchStates)
+			// Don't go through switches.
+			if t == tileSwitch0 || t == tileSwitch1 {
+				return x == s.selectedTileX && y == s.selectedTileY
+			}
 			return t.isPassable()
 		}
 		path := calcPath(passable, s.player.x, s.player.y, s.selectedTileX, s.selectedTileY)
