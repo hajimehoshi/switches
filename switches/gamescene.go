@@ -69,6 +69,14 @@ func (s *gameScene) Update() error {
 			return nil
 		}
 		passable := func(x, y int) bool {
+			x0, y0, x1, y1 := s.tileRangeInScreen()
+			w, h, _ := s.field.tileSize()
+			if x < x0 || x1 <= x || y < y0 || y1 <= y {
+				return false
+			}
+			if x < 0 || w <= x || y < 0 || h <= y {
+				return false
+			}
 			t, _ := s.field.tile(x, y, s.player.z, s.switchStates)
 			return t.isPassable()
 		}
