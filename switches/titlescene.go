@@ -41,7 +41,7 @@ type titleScene struct {
 }
 
 func newTitleScene(game *Game) *titleScene {
-	y := screenHeight - 8 - 64
+	y := screenHeight - 32 - 64
 	modes := []*mode{
 		{"EASY", 2, 0, y},
 		{"NORMAL", 4, 0, y + 16},
