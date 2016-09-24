@@ -65,14 +65,53 @@ func (s *gameScene) Update() error {
 	s.updateSelectedTile()
 	if s.game.input.IsTriggered() {
 		tile, _ := s.field.tile(s.selectedTileX, s.selectedTileY, s.player.z, s.switchStates)
-		if tile.isPassable() {
-			passable := func(x, y int) bool {
-				t, _ := s.field.tile(x, y, s.player.z, s.switchStates)
-				return t.isPassable()
-			}
-			path := calcPath(passable, s.player.x, s.player.y, s.selectedTileX, s.selectedTileY)
-			_ = path
+		if !tile.isPassable() {
+			return nil
 		}
+		passable := func(x, y int) bool {
+			t, _ := s.field.tile(x, y, s.player.z, s.switchStates)
+			return t.isPassable()
+		}
+		path := calcPath(passable, s.player.x, s.player.y, s.selectedTileX, s.selectedTileY)
+		if len(path) == 0 {
+			return nil
+		}
+		i := 0
+		x, y := s.player.x, s.player.y
+		var moveTask task
+		s.game.appendTask(func() error {
+			if len(path) <= i {
+				return taskTerminated
+			}
+			if moveTask == nil {
+				d := path[i]
+				switch d {
+				case dirLeft:
+					x--
+				case dirRight:
+					x++
+				case dirUp:
+					y--
+				case dirDown:
+					y++
+				}
+				moveTask = s.moveTask(d, x, y)
+			}
+			if err := moveTask(); err == nil {
+				return nil
+			} else if err != taskTerminated {
+				return err
+			}
+			moveTask = nil
+			i++
+			switch t, _ := s.field.tile(x, y, s.player.z, s.switchStates); t {
+			case tileSwitch0:
+				fallthrough
+			case tileSwitch1:
+				return taskTerminated
+			}
+			return nil
+		})
 		return nil
 	}
 	// Move the player
@@ -101,9 +140,7 @@ func (s *gameScene) Update() error {
 	if t, _ := s.field.tile(nx, ny, s.player.z, s.switchStates); !t.isPassable() {
 		return nil
 	}
-	s.player.dir = dir
-	s.player.moveCount = playerMaxMoveCount
-	s.game.appendTask(s.moveTask(nx, ny))
+	s.game.appendTask(s.moveTask(dir, nx, ny))
 	return nil
 }
 
@@ -115,8 +152,14 @@ func (s *gameScene) updateSelectedTile() {
 	s.selectedTileY = y0 + (y-oy)/gridSize
 }
 
-func (s *gameScene) moveTask(nextX, nextY int) func() error {
+func (s *gameScene) moveTask(dir dir, nextX, nextY int) task {
+	started := false
 	return func() error {
+		if !started {
+			s.player.dir = dir
+			s.player.moveCount = playerMaxMoveCount
+			started = true
+		}
 		if 0 < s.player.moveCount {
 			s.player.moveCount--
 		}

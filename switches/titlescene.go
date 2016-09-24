@@ -76,7 +76,7 @@ func (t *titleScene) Update() error {
 			}
 		}
 	}
-	if t.game.input.IsTriggered() && t.loadingCh == nil {
+	if t.game.input.IsTriggered() && t.selectedMode != nil && t.loadingCh == nil {
 		t.loadingCh = make(chan error)
 		m := t.selectedMode
 		go func() {

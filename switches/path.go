@@ -47,8 +47,12 @@ func calcPath(passable func(x, y int) bool, startX, startY, goalX, goalY int) []
 	}
 	p := pos{goalX, goalY}
 	dirs := []dir{}
-	for p.X != startX && p.Y != startY {
-		parent := parents[p]
+	for p.X != startX || p.Y != startY {
+		parent, ok := parents[p]
+		// There is no path.
+		if !ok {
+			return nil
+		}
 		switch {
 		case parent.X == p.X - 1:
 			dirs = append(dirs, dirRight)
