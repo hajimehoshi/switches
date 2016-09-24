@@ -73,6 +73,10 @@ func (s *gameScene) Update() error {
 	}
 	s.updateSelectedTile()
 	if s.game.input.IsTriggered() {
+		w, h, _ := s.field.tileSize()
+		if s.selectedTileX < 0 || w <= s.selectedTileX || s.selectedTileY < 0 || h <= s.selectedTileY {
+			return nil
+		}
 		tile, _ := s.field.tile(s.selectedTileX, s.selectedTileY, s.player.z, s.switchStates)
 		if !tile.isPassable() {
 			return nil
