@@ -39,6 +39,7 @@ type gameScene struct {
 	switchStates  []bool
 	selectedTileX int
 	selectedTileY int
+	goal          bool
 }
 
 func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, error) {
@@ -62,6 +63,14 @@ func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, e
 }
 
 func (s *gameScene) Update() error {
+	tile, _ := s.field.tile(s.player.x, s.player.y, s.player.z, s.switchStates)
+	if tile == tileGoal {
+		s.goal = true
+		if s.game.input.IsTriggered() {
+			s.game.goTo(newTitleScene(s.game))
+		}
+		return nil
+	}
 	s.updateSelectedTile()
 	if s.game.input.IsTriggered() {
 		tile, _ := s.field.tile(s.selectedTileX, s.selectedTileY, s.player.z, s.switchStates)
@@ -127,7 +136,6 @@ func (s *gameScene) Update() error {
 		return nil
 	}
 	// Move the player
-	tile, _ := s.field.tile(s.player.x, s.player.y, s.player.z, s.switchStates)
 	nx, ny := s.player.x, s.player.y
 	w, h, _ := s.field.tileSize()
 	var dir dir
@@ -355,6 +363,7 @@ func newTileParts(scene *gameScene) *tileParts {
 			tileSwitch1:             {11 * gridSize, 0},
 			tileSwitchedTileValid:   {1 * gridSize, 0},
 			tileSwitchedTileInvalid: {0, 0},
+			tileGoal:                {12 * gridSize, 0},
 		}[t]
 		p.src[2*i] = pos.X
 		p.src[2*i+1] = pos.Y
@@ -410,6 +419,11 @@ func (s *gameScene) Draw(screen *ebiten.Image) error {
 	if err := s.drawFloorNumber(screen); err != nil {
 		return err
 	}
+	if s.goal {
+		if err := s.drawGoalMessage(screen); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -458,6 +472,32 @@ func (s *gameScene) drawFloorNumber(screen *ebiten.Image) error {
 	x := 8
 	y := 8
 	if err := font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 1, color.White); err != nil {
+		return err
+	}
+	return nil
+}
+
+var emptyImage *ebiten.Image
+
+func (s *gameScene) drawGoalMessage(screen *ebiten.Image) error {
+	if emptyImage == nil {
+		var err error
+		emptyImage, err = ebiten.NewImage(screenWidth, screenHeight, ebiten.FilterNearest)
+		if err != nil {
+			return err
+		}
+		if err := emptyImage.Fill(color.RGBA{0, 0, 0, 0x80}); err != nil {
+			return err
+		}
+	}
+	if err := screen.DrawImage(emptyImage, nil); err != nil {
+		return err
+	}
+	msg := "GOAL!"
+	w := font.ArcadeFont.TextWidth(msg)
+	x := (screenWidth - w*2) / 2
+	y := 64
+	if err := font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 2, color.White); err != nil {
 		return err
 	}
 	return nil

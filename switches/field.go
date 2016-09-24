@@ -121,6 +121,7 @@ type room struct {
 	x, y, z  int
 	dirs     [6]*passage
 	switches []bool
+	goal     bool
 }
 
 type field struct {
@@ -250,6 +251,7 @@ func (f *field) makeRoughStructure() bool {
 		current = position{nx, ny, nz, ns}
 	}
 	lastRoom := f.newRoom(f.width - 1, f.height, f.depth - 1)
+	lastRoom.goal = true
 	f.rooms[f.index(f.width - 1, f.height, f.depth - 1)] = lastRoom
 	lastPassage := newPassage(f.switches)
 	for i := 0; i < f.switches; i++ {
@@ -277,6 +279,7 @@ const (
 	tileSwitch1
 	tileSwitchedTileValid
 	tileSwitchedTileInvalid
+	tileGoal
 )
 
 func (t tile) oneWay() bool {
@@ -367,6 +370,9 @@ func (f *field) tile(x, y, z int, switchStates []bool) (tile, int) {
 	my := y % h
 	cx, cy := 2, h-1
 	if mx == cx && my == cy {
+		if room.goal {
+			return tileGoal, 0
+		}
 		return tileRegular, 0
 	}
 	hasUpstairsLeft := false
