@@ -106,7 +106,10 @@ func (t *titleScene) Draw(screen *ebiten.Image) error {
 		return err
 	}
 	if t.loadingCh == nil {
-		if err := font.ArcadeFont.DrawText(screen, "SWITCHES", 8, 8, 1, color.White); err != nil {
+		title := "SWITCHES"
+		w := font.ArcadeFont.TextWidth(title)
+		x := (screenWidth - w * 2) / 2
+		if err := font.ArcadeFont.DrawText(screen, title, x, 64, 2, color.White); err != nil {
 			return err
 		}
 		for _, m := range t.modes {
