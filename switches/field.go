@@ -240,7 +240,7 @@ func (f *field) makeRoughStructure() bool {
 				nextRoom.dirs[d.opposite()] = p
 			} else {
 				p := prevRoom.dirs[d]
-				if max(0, f.switches-1) < p.dontCareNum(f.switches, ns) {
+				if max(0, f.switches-2) < p.dontCareNum(f.switches, ns) {
 					continued++
 					continue
 				}
@@ -250,14 +250,14 @@ func (f *field) makeRoughStructure() bool {
 		continued = 0
 		current = position{nx, ny, nz, ns}
 	}
-	lastRoom := f.newRoom(f.width - 1, f.height, f.depth - 1)
+	lastRoom := f.newRoom(f.width-1, f.height, f.depth-1)
 	lastRoom.goal = true
-	f.rooms[f.index(f.width - 1, f.height, f.depth - 1)] = lastRoom
+	f.rooms[f.index(f.width-1, f.height, f.depth-1)] = lastRoom
 	lastPassage := newPassage(f.switches)
 	for i := 0; i < f.switches; i++ {
 		lastPassage.switches[i] = passageSwitchTypeNeedTrue
 	}
-	f.rooms[f.index(f.width - 1, f.height - 1, f.depth - 1)].dirs[dirDown] = lastPassage
+	f.rooms[f.index(f.width-1, f.height-1, f.depth-1)].dirs[dirDown] = lastPassage
 	lastRoom.dirs[dirUp] = lastPassage
 	return true
 }
