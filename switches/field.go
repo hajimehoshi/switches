@@ -15,13 +15,8 @@
 package switches
 
 import (
-	"math/rand"
-	"time"
+	"math/rand/v2"
 )
-
-func init() {
-	rand.Seed(time.Now().Unix())
-}
 
 type dir int
 
@@ -72,7 +67,7 @@ func newPassage(switches int) *passage {
 
 func (p *passage) initRandomly(switches int, switchBits int) {
 	for i := 0; i < switches; i++ {
-		if switches > 1 && rand.Intn(switches) == 0 {
+		if switches > 1 && rand.IntN(switches) == 0 {
 			continue
 		}
 		if (switchBits>>uint(i))&1 == 0 {
@@ -189,13 +184,13 @@ func (f *field) makeRoughStructure() bool {
 		}
 		nx, ny, nz, ns := current.X, current.Y, current.Z, current.SwitchBits
 		var d dir
-		changeSwitch := f.switches > 0 && rand.Intn(4) == 0
+		changeSwitch := f.switches > 0 && rand.IntN(4) == 0
 		changedSwitch := 0
 		if changeSwitch {
-			changedSwitch = rand.Intn(f.switches)
+			changedSwitch = rand.IntN(f.switches)
 			ns ^= 1 << uint(changedSwitch)
 		} else {
-			d = dir(rand.Intn(6))
+			d = dir(rand.IntN(6))
 			switch d {
 			case dirRight:
 				nx = min(current.X+1, f.width-1)
