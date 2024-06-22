@@ -80,6 +80,7 @@ func (g *Game) goTo(scene scene) {
 
 func (g *Game) Run() error {
 	ebiten.SetWindowTitle("Switches")
+	ebiten.SetWindowSize(screenWidth*2, screenHeight*2)
 	if err := ebiten.RunGame(g); err != nil {
 		panic(err)
 	}
