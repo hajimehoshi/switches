@@ -16,10 +16,12 @@ package switches
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 
-	"github.com/hajimehoshi/ebiten"
-	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+
 	"github.com/hajimehoshi/switches/switches/internal/font"
 )
 
@@ -47,7 +49,7 @@ func newGameScene(width, height, depth, switches int, game *Game) (*gameScene, e
 	if err != nil {
 		return nil, err
 	}
-	tilesImage, _, err := ebitenutil.NewImageFromFile("tiles.png", ebiten.FilterNearest)
+	tilesImage, _, err := ebitenutil.NewImageFromFile("tiles.png")
 	if err != nil {
 		return nil, err
 	}
@@ -251,19 +253,6 @@ const (
 	playerMaxMoveCount = 4
 )
 
-type tilePart struct {
-	srcX, srcY int
-	dstX, dstY int
-}
-
-func (p *tilePart) Len() int { return 1 }
-func (p *tilePart) Dst(i int) (int, int, int, int) {
-	return p.dstX, p.dstY, p.dstX + gridSize, p.dstY + gridSize
-}
-func (p *tilePart) Src(i int) (int, int, int, int) {
-	return p.srcX, p.srcY, p.srcX + gridSize, p.srcY + gridSize
-}
-
 type switchLetter struct {
 	letter rune
 	color  switchLetterColor
@@ -375,97 +364,56 @@ func newTileParts(scene *gameScene) *tileParts {
 	return p
 }
 
-func (p *tileParts) Len() int {
-	return len(p.dst) / 2
-}
-
-func (p *tileParts) Dst(i int) (int, int, int, int) {
-	if _, ok := p.skips[i]; ok {
-		return 0, 0, 0, 0
+func (p *tileParts) draw(screen *ebiten.Image, tilesImage *ebiten.Image) {
+	for i := 0; i < len(p.dst)/2; i++ {
+		if _, ok := p.skips[i]; ok {
+			continue
+		}
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(p.dst[2*i]), float64(p.dst[2*i+1]))
+		x, y := p.src[2*i], p.src[2*i+1]
+		screen.DrawImage(tilesImage.SubImage(image.Rect(x, y, x+gridSize, y+gridSize)).(*ebiten.Image), op)
 	}
-	x, y := p.dst[2*i], p.dst[2*i+1]
-	return x, y, x + gridSize, y + gridSize
-}
-
-func (p *tileParts) Src(i int) (int, int, int, int) {
-	if _, ok := p.skips[i]; ok {
-		return 0, 0, 0, 0
-	}
-	x, y := p.src[2*i], p.src[2*i+1]
-	return x, y, x + gridSize, y + gridSize
 }
 
 func (p *tileParts) switchLetters() []*switchLetter {
 	return p.letters
 }
 
-func (s *gameScene) Draw(screen *ebiten.Image) error {
-	if err := screen.Fill(backgroundColor); err != nil {
-		return err
-	}
-	op := &ebiten.DrawImageOptions{}
+func (s *gameScene) Draw(screen *ebiten.Image) {
+	screen.Fill(backgroundColor)
 	tileParts := newTileParts(s)
-	op.ImageParts = tileParts
-	if err := screen.DrawImage(s.tilesImage, op); err != nil {
-		return err
-	}
-	if err := s.drawCursor(screen); err != nil {
-		return err
-	}
+	tileParts.draw(screen, s.tilesImage)
+	s.drawCursor(screen)
 	for _, l := range tileParts.switchLetters() {
-		if err := font.ArcadeFont.DrawText(screen, string(l.letter), l.x, l.y, 1, l.color); err != nil {
-			return err
-		}
+		font.ArcadeFont.DrawText(screen, string(l.letter), l.x, l.y, 1, l.color)
 	}
-	if err := s.drawPlayer(screen); err != nil {
-		return err
-	}
-	if err := s.drawFloorNumber(screen); err != nil {
-		return err
-	}
+	s.drawPlayer(screen)
+	s.drawFloorNumber(screen)
 	if s.goal {
-		if err := s.drawGoalMessage(screen); err != nil {
-			return err
-		}
+		s.drawGoalMessage(screen)
 	}
-	return nil
 }
 
-func (s *gameScene) drawCursor(screen *ebiten.Image) error {
+func (s *gameScene) drawCursor(screen *ebiten.Image) {
 	ox, oy := s.tileOffset()
 	x0, y0, _, _ := s.tileRangeInScreen()
 	dstX := s.selectedTileX*gridSize - x0*gridSize + ox
 	dstY := s.selectedTileY*gridSize - y0*gridSize + oy
 	op := &ebiten.DrawImageOptions{}
-	op.ImageParts = &tilePart{
-		srcX: 16,
-		srcY: 16,
-		dstX: dstX,
-		dstY: dstY,
-	}
-	if err := screen.DrawImage(s.tilesImage, op); err != nil {
-		return err
-	}
-	return nil
+	op.GeoM.Translate(float64(dstX), float64(dstY))
+	screen.DrawImage(s.tilesImage.SubImage(image.Rect(16, 16, 16+gridSize, 16+gridSize)).(*ebiten.Image), op)
 }
 
-func (s *gameScene) drawPlayer(screen *ebiten.Image) error {
+func (s *gameScene) drawPlayer(screen *ebiten.Image) {
 	dstX := (screenWidth - gridSize) / 2
 	dstY := (screenHeight - gridSize) / 2
 	op := &ebiten.DrawImageOptions{}
-	op.ImageParts = &tilePart{
-		srcX: 0,
-		srcY: 16,
-		dstX: dstX,
-		dstY: dstY,
-	}
-	if err := screen.DrawImage(s.tilesImage, op); err != nil {
-		return err
-	}
-	return nil
+	op.GeoM.Translate(float64(dstX), float64(dstY))
+	screen.DrawImage(s.tilesImage.SubImage(image.Rect(0, 16, 0+gridSize, 16+gridSize)).(*ebiten.Image), op)
 }
 
-func (s *gameScene) drawFloorNumber(screen *ebiten.Image) error {
+func (s *gameScene) drawFloorNumber(screen *ebiten.Image) {
 	z := s.player.z
 	msg := ""
 	if z == 0 {
@@ -475,34 +423,20 @@ func (s *gameScene) drawFloorNumber(screen *ebiten.Image) error {
 	}
 	x := 8
 	y := 8
-	if err := font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 1, color.White); err != nil {
-		return err
-	}
-	return nil
+	font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 1, color.White)
 }
 
 var emptyImage *ebiten.Image
 
-func (s *gameScene) drawGoalMessage(screen *ebiten.Image) error {
+func (s *gameScene) drawGoalMessage(screen *ebiten.Image) {
 	if emptyImage == nil {
-		var err error
-		emptyImage, err = ebiten.NewImage(screenWidth, screenHeight, ebiten.FilterNearest)
-		if err != nil {
-			return err
-		}
-		if err := emptyImage.Fill(color.RGBA{0, 0, 0, 0x80}); err != nil {
-			return err
-		}
+		emptyImage = ebiten.NewImage(screenWidth, screenHeight)
+		emptyImage.Fill(color.RGBA{0, 0, 0, 0x80})
 	}
-	if err := screen.DrawImage(emptyImage, nil); err != nil {
-		return err
-	}
+	screen.DrawImage(emptyImage, nil)
 	msg := "GOAL!"
 	w := font.ArcadeFont.TextWidth(msg)
 	x := (screenWidth - w*2) / 2
 	y := 64
-	if err := font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 2, color.White); err != nil {
-		return err
-	}
-	return nil
+	font.ArcadeFont.DrawTextWithShadow(screen, msg, x, y, 2, color.White)
 }

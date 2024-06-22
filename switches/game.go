@@ -18,13 +18,14 @@ import (
 	"errors"
 	"image/color"
 
-	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/v2"
+
 	"github.com/hajimehoshi/switches/switches/internal/input"
 )
 
 type scene interface {
 	Update() error
-	Draw(screen *ebiten.Image) error
+	Draw(screen *ebiten.Image)
 }
 
 type task func() error
@@ -78,39 +79,29 @@ func (g *Game) goTo(scene scene) {
 }
 
 func (g *Game) Run() error {
-	f := func(screen *ebiten.Image) error {
-		g.input.Update()
-		if consumed, err := g.consumeTask(); err != nil {
-			return err
-		} else if !consumed {
-			if err := g.update(); err != nil {
-				return err
-			}
-		}
-		if ebiten.IsRunningSlowly() {
-			return nil
-		}
-		if err := g.draw(screen); err != nil {
-			return err
-		}
-		return nil
-	}
-	if err := ebiten.Run(f, screenWidth, screenHeight, 2, "Switches"); err != nil {
+	ebiten.SetWindowTitle("Switches")
+	if err := ebiten.RunGame(g); err != nil {
 		panic(err)
 	}
 	return nil
 }
 
-func (g *Game) update() error {
-	if err := g.scene.Update(); err != nil {
+func (g *Game) Update() error {
+	g.input.Update()
+	if consumed, err := g.consumeTask(); err != nil {
 		return err
+	} else if !consumed {
+		if err := g.scene.Update(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (g *Game) draw(screen *ebiten.Image) error {
-	if err := g.scene.Draw(screen); err != nil {
-		return err
-	}
-	return nil
+func (g *Game) Draw(screen *ebiten.Image) {
+	g.scene.Draw(screen)
+}
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return screenWidth, screenHeight
 }

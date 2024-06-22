@@ -17,7 +17,8 @@ package switches
 import (
 	"image/color"
 
-	"github.com/hajimehoshi/ebiten"
+	"github.com/hajimehoshi/ebiten/v2"
+
 	"github.com/hajimehoshi/switches/switches/internal/font"
 )
 
@@ -101,30 +102,21 @@ func (t *titleScene) Update() error {
 	return nil
 }
 
-func (t *titleScene) Draw(screen *ebiten.Image) error {
-	if err := screen.Fill(backgroundColor); err != nil {
-		return err
-	}
+func (t *titleScene) Draw(screen *ebiten.Image) {
+	screen.Fill(backgroundColor)
 	if t.loadingCh == nil {
 		title := "SWITCHES"
 		w := font.ArcadeFont.TextWidth(title)
-		x := (screenWidth - w * 2) / 2
-		if err := font.ArcadeFont.DrawText(screen, title, x, 64, 2, color.White); err != nil {
-			return err
-		}
+		x := (screenWidth - w*2) / 2
+		font.ArcadeFont.DrawText(screen, title, x, 64, 2, color.White)
 		for _, m := range t.modes {
 			clr := color.Color(color.White)
 			if t.selectedMode == m {
 				clr = color.RGBA{0xff, 0xee, 0x58, 0xff}
 			}
-			if err := font.ArcadeFont.DrawText(screen, m.text, m.x, m.y, 1, clr); err != nil {
-				return err
-			}
+			font.ArcadeFont.DrawText(screen, m.text, m.x, m.y, 1, clr)
 		}
-		return nil
+		return
 	}
-	if err := font.ArcadeFont.DrawText(screen, "NOW LOADING...", 8, 8, 1, color.White); err != nil {
-		return err
-	}
-	return nil
+	font.ArcadeFont.DrawText(screen, "NOW LOADING...", 8, 8, 1, color.White)
 }
